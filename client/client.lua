@@ -1,11 +1,21 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local pedSpawned = false
 local onjob = false
-local dropoffblip = nil
-local dealerblip = nil
 local package = nil
+local lastguard = nil
+local DeliveryBlip = nil
+local oxydealer = nil
 
- function getpackage()
+function newrun()
+    if DoesEntityExist(oxydealer) then
+        DeleteEntity(oxydealer)
+        pedSpawned = false
+    end
+    Citizen.Wait(10000)
+    spawnguard()
+end
+
+function getpackage()
     package = AddBlipForCoord(-1273.18, -1371.93)
 	SetBlipAsShortRange(package, true)
 	SetBlipSprite(package, 501)
@@ -20,6 +30,7 @@ end
 
 RegisterNetEvent('Khats:startjob', function()
     if not onjob then
+        exports['qb-target']:RemoveZone("startrun")
          print("started")
          QBCore.Functions.Notify("New Email.", 'error', 2500)
          TriggerServerEvent('qb-phone:server:sendNewMail', {
@@ -30,8 +41,7 @@ RegisterNetEvent('Khats:startjob', function()
         Citizen.Wait(math.random(20000, 60000))
         boxzonecreate()
         getpackage()
-            exports['qb-target']:RemoveZone("startrun")
-            onjob = true
+        onjob = true
     else
         QBCore.Functions.Notify("You're already on the job idiot.", 'error', 5000)
     end
@@ -42,7 +52,14 @@ RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
 end)
 
 function spawnguard()
-    local chance = math.random(1,#Config.Locations)
+    local guard = math.random(1,#Config.Locations)
+
+    if lastguard ~= nil then
+        while lastguard ~= guard do
+            guard = math.random(1, #Config.Locations)
+        end
+    end
+    lastguard = guard
     local modelHash = `mp_m_securoguard_01` -- The ` return the jenkins hash of a string. see more at: https://cookbook.fivem.net/2019/06/23/lua-support-for-compile-time-jenkins-hashes/
 
                         if not HasModelLoaded(modelHash) then
@@ -52,12 +69,12 @@ function spawnguard()
                             end
                         end
 
-                local oxydealer = CreatePed(1, modelHash, Config.Locations[chance], false)
+                oxydealer = CreatePed(1, modelHash, Config.Locations[guard], false)
                                 SetEntityInvincible(oxydealer, true)
                                 SetBlockingOfNonTemporaryEvents(oxydealer, true)
                                 FreezeEntityPosition(oxydealer, true)
 
-                exports['qb-target']:AddCircleZone('startrun', Config.Locations[chance], 0.5, {
+                exports['qb-target']:AddCircleZone('startrun', Config.Locations[guard], 0.5, {
                     name='startrun',
                     debugPoly=false,
                     minZ = 3.30,
@@ -76,8 +93,8 @@ function spawnguard()
                 pedSpawned = true
 end
 
-function animation()
-    TriggerEvent('animations:client:EmoteCommandStart', {"Give"})
+function animationdrop()
+    TriggerEvent('dpemotes:client:EmoteCommandStart', {"give"})
     QBCore.Functions.Progressbar("givetake2_b", "Inspecting Package", 5000, false, true, {
         disableMovement = true,
         disableCarMovement = true,
@@ -88,13 +105,31 @@ function animation()
     end)
 end
 
+function animationpickup()
+    TriggerEvent('animations:client:PlayEmote', {"give"})
+    QBCore.Functions.Progressbar("givetake2_b", "getting packages", 10000, false, true, {
+        disableMovement = true,
+        disableCarMovement = true,
+        disableMouse = false,
+        disableCombat = true,
+    }, {
+    }, {}, {}, function() -- Done
+    end)
+end
+
 function spawndrop()
+    local chance = math.random(1, #Config.Dropoff)
     Citizen.Wait(1000)
-    local hasitem = QBCore.Functions.HasItem("package")
-    if hasitem == true then
-    local chance = math.random(1,#Config.Dropoff)
+    local haspackage = QBCore.Functions.HasItem("package")
+    if DeliveryBlip ~= nil then
+        RemoveBlip(DeliveryBlip)
+    end
+    if haspackage == true then
+        DeliveryBlip = AddBlipForCoord(Config.Dropoff[chance].x, Config.Dropoff[chance].y, Config.Dropoff[chance].z)
+        SetBlipColour(DeliveryBlip, 3)
+        SetBlipRoute(DeliveryBlip, true)
+        SetBlipRouteColour(DeliveryBlip, 3)
     local modelHash = `a_m_m_acult_01` -- The ` return the jenkins hash of a string. see more at: https://cookbook.fivem.net/2019/06/23/lua-support-for-compile-time-jenkins-hashes/
-                        SetNewWaypoint(Config.Dropoff[chance])
                         if not HasModelLoaded(modelHash) then
                         RequestModel(modelHash)
                             while not HasModelLoaded(modelHash) do
@@ -120,6 +155,8 @@ function spawndrop()
                     distance = 3.5
                 })
             else
+                deletedealer()
+                newrun()
                 onjob = false
                 QBCore.Functions.Notify("Gameover.", 'error', 5000)
             end
@@ -133,10 +170,10 @@ end
 
 function continue()
     TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
-    Citizen.Wait(1000)
+    Citizen.Wait(2000)
+    exports['qb-target']:RemoveZone("drop")
     TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items["package"], "remove")
     Citizen.Wait(10000)
-    exports['qb-target']:RemoveZone("drop")
     deletedealer()
     spawndrop()
 end
@@ -148,15 +185,14 @@ RegisterNetEvent('Khats:dropoff', function ()
     local reward = Config.Mime[math.random(1,#Config.Mime)]
 
     if hasItem then
-        animation()
+        animationdrop()
         local hasItem2 = QBCore.Functions.HasItem("smallnote")
         local hasItem3 = QBCore.Functions.HasItem("mediumnote")
         local hasItem4 = QBCore.Functions.HasItem("largenote")
             if hasItem2 then
-                local amount = math.random(3)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "package", 1)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "smallnote", 1)
-                TriggerServerEvent('QBCore:Server:AddItem', reward, amount)
+                TriggerServerEvent('QBCore:Server:AddItem', reward, math.random(2))
                 TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
                 continue()
             elseif hasItem3 then
@@ -173,13 +209,14 @@ RegisterNetEvent('Khats:dropoff', function ()
                 Citizen.Wait(1000)
                 TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
                 continue()
-            elseif hasItem then 
+            elseif hasItem then
                 TriggerServerEvent('QBCore:Server:AddItem', reward, 1)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "package", 1)
                 TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
                 continue()
             elseif not hasItem then
                 onjob = false
+                deletedealer()
             end
         end
     end)
@@ -208,22 +245,25 @@ RegisterNetEvent('PickupPackage', function ()
         RemoveBlip(package)
         local random = math.random(100)
 
-        if random >= 1 and random <= 20 then 
+        if random >= 1 and random <= 20 then
             amount = '5'
-        elseif random >= 21 and random <= 35 then 
+        elseif random >= 21 and random <= 35 then
             amount = '6'
-        elseif random >= 36 and random <= 49 then 
+        elseif random >= 36 and random <= 49 then
             amount = '7'
-        elseif random >= 50 and random <= 69 then 
+        elseif random >= 50 and random <= 69 then
             amount = '8'
-        elseif random >= 70 and random <= 79 then 
+        elseif random >= 70 and random <= 79 then
             amount = '9'
-        elseif random >= 80 and random <= 100 then 
+        elseif random >= 80 and random <= 100 then
             amount = '10'
         end
         TriggerServerEvent('QBCore:Server:AddItem', "package", amount)
-        --TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items["package"], "add")
+        TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items["package"], "add")
         exports['qb-target']:RemoveZone("oxypickup")
+        if package ~= nil then
+            RemoveBlip(package)
+        end
         spawndrop()
 end)
 
@@ -242,26 +282,4 @@ end
 Citizen.CreateThread(function()
     if pedSpawned then return end
         spawnguard()
-end)
-
-RegisterCommand('ks', function (input)
-    print("Onjob", #Config.Rewards)
-    print("Pedspawned", pedSpawned)
-    QBCore.Functions.Notify("State 2 activate/start", 'error', 5000)
-end)
-
-RegisterCommand('ds', function (input)
-        print(Location)
-end)
-
-RegisterCommand('st', function (input)
-    onjob = false
-    spawnguard()
-    QBCore.Functions.Notify("restarted script", 'error', 5000)
-end)
-
-RegisterCommand('rz', function (input)
-    exports['qb-target']:RemoveZone("drop")
-    exports['qb-target']:RemoveZone("startrun")
-    QBCore.Functions.Notify("restarted script", 'error', 5000)
 end)
