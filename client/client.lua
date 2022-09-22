@@ -178,6 +178,10 @@ function continue()
     spawndrop()
 end
 
+RegisterCommand('td', function(source)
+    TriggerServerEvent("QBCore:ToggleDuty")
+end)
+
 RegisterNetEvent('Khats:dropoff', function ()
     QBCore.Functions.Notify("Dropping off", 'error', 5000)
 
@@ -282,4 +286,73 @@ end
 Citizen.CreateThread(function()
     if pedSpawned then return end
         spawnguard()
+end)
+--New Container Features
+
+function makeboxes()
+    CreateThread(function()
+        for k, v in pairs(Config.Containers) do
+            local boxZone = BoxZone:Create(v.coords, 1, 1, {
+                name="Containers" .. k,
+                heading = v.coords.h,
+                minZ = 29,
+                maxZ = 32,
+                debugPoly = true
+            })
+            boxZone:onPlayerInOut(function(isPointInside)
+                if isPointInside then
+                    inZone = true
+                    print("inside")
+                else
+                    inZone = false
+                    exports['qb-core']:HideText()
+                    print("outside")
+                end
+            end)
+        end
+    end)
+    CreateThread(function()
+        Wait(1000)
+        local Hasitem = QBCore.Functions.HasItem("heavycutters")
+        while true do
+            local sleep = 1000
+            if inZone then
+                sleep = 2
+                for k, v in pairs(Config.Locations) do
+                    if not Config.Containers[k]["isBusy"] and not Config.Containers[k]["isOpened"] then
+                        exports['qb-core']:DrawText('Open the box', 'left')
+                        if IsControlJustPressed(0, 38) then
+                            exports['qb-core']:KeyPressed(38)
+                            --QBCore.Functions.TriggerCallback('qb-jewellery:server:getCops', function(cops)
+                                --if cops >= Config.RequiredCops then
+                                    if Hasitem then
+                                        local ItemAmount = math.random(1,100)
+                                        TriggerServerEvent('Khats:ContainerRewards', ItemAmount)
+                                    else
+                                        QBCore.Functions.Notify('How are you gonna open this?', 'error')
+                                    end
+                               -- else
+                                --    QBCore.Functions.Notify('Not Enough Police ('.. Config.RequiredCops ..') Required', 'error')
+                               -- end
+                           -- end)
+                        Wait(12000)
+                        end
+                    end
+                    if not firstAlarm then
+                        if Hasitem then
+                            TriggerServerEvent('police:server:policeAlert', 'Suspicious Activity')
+                            firstAlarm = true
+                        end
+                    end
+                end
+            else
+                sleep = 1000
+            end
+            Wait(sleep)
+        end
+    end)
+end
+--Container Command
+RegisterCommand('makeboxes', function()
+    makeboxes()
 end)

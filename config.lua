@@ -1,5 +1,7 @@
 Config = Config or {}
 
+Config.RequiredCops = 0
+
 Config.Locations = {
     vector4(-1274.79, -1364.84, 3.3, 283.58),
     vector4(-1276.13, -1361.08, 3.3, 286.75),
@@ -45,4 +47,29 @@ Config.Dropoff = {
 Config.Mime = {
     "metalscrap",
     "plastic",
+}
+
+Config.Containers = {
+
+    [1] = {["coords"] = vector4(1088.89, -2371.15, 30.5, 87.33), IsBusy = false, IsOpened = false},
+    [2] = {["coords"] = vector4(1088.23, -2368.2, 30.39, 86.17), IsBusy = false, IsOpened = false},
+    [3] = {["coords"] = vector3(1088.19, -2358.04, 30.23), IsBusy = false, IsOpened = false},
+    [4] = {["coords"] = vector3(1085.56, -2346.95, 30.27), IsBusy = false, IsOpened = false},
+    [5] = {["coords"] = vector3(1102.57, -2351.94, 30.3), IsBusy = false, IsOpened = false},
+    [6] = {["coords"] = vector3(1110.27, -2343.28, 30.44), IsBusy = false, IsOpened = false},
+    [7] = {["coords"] = vector3(1080.83, -2315.91, 30.25), IsBusy = false, IsOpened = false},
+    [8] = {["coords"] = vector3(1099.66, -2322.07, 31.74), IsBusy = false, IsOpened = false},
+    [9] = {["coords"] = vector3(1085.0, -2302.29, 30.22), IsBusy = false, IsOpened = false},
+    [10] = {["coords"] = vector3(1090.7, -2241.97, 30.28), IsBusy = false, IsOpened = false},
+
+}
+
+Config.ContainerRewardsRare = {
+    "plastic",
+    "plastic"
+}
+
+Config.ContainerRewards = {
+    "plastic",
+    "plastic"
 }
