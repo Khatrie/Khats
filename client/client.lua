@@ -6,6 +6,7 @@ local lastguard = nil
 local DeliveryBlip = nil
 local oxydealer = nil
 
+
 function newrun()
     if DoesEntityExist(oxydealer) then
         DeleteEntity(oxydealer)
@@ -20,7 +21,7 @@ function getpackage()
 	SetBlipAsShortRange(package, true)
 	SetBlipSprite(package, 501)
 	SetBlipColour(package, 37)
-	SetBlipScale(package, 0.7)
+	SetBlipScale(package, 1.0)
 	SetBlipDisplay(package, 6)
 	BeginTextCommandSetBlipName('Pickup')
 	AddTextComponentString('Pickup')
@@ -60,14 +61,14 @@ function spawnguard()
         end
     end
     lastguard = guard
-    local modelHash = `mp_m_securoguard_01` -- The ` return the jenkins hash of a string. see more at: https://cookbook.fivem.net/2019/06/23/lua-support-for-compile-time-jenkins-hashes/
+    local modelHash = 'mp_m_securoguard_01' --[[ The ` return the jenkins hash of a string. see more at: https://cookbook.fivem.net/2019/06/23/lua-support-for-compile-time-jenkins-hashes/ ]]
 
-                        if not HasModelLoaded(modelHash) then
-                        RequestModel(modelHash)
-                            while not HasModelLoaded(modelHash) do
-                                Wait(100)
-                            end
-                        end
+                if not HasModelLoaded(modelHash) then
+                RequestModel(modelHash)
+                    while not HasModelLoaded(modelHash) do
+                        Wait(100)
+                    end
+                end
 
                 oxydealer = CreatePed(1, modelHash, Config.Locations[guard], false)
                                 SetEntityInvincible(oxydealer, true)
@@ -169,18 +170,15 @@ function deletedealer()
 end
 
 function continue()
-    TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
+    TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()[reward], "add")
     Citizen.Wait(2000)
     exports['qb-target']:RemoveZone("drop")
-    TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items["package"], "remove")
+    TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()["package"], "remove")
     Citizen.Wait(10000)
     deletedealer()
     spawndrop()
 end
 
-RegisterCommand('td', function(source)
-    TriggerServerEvent("QBCore:ToggleDuty")
-end)
 
 RegisterNetEvent('Khats:dropoff', function ()
     QBCore.Functions.Notify("Dropping off", 'error', 5000)
@@ -197,26 +195,26 @@ RegisterNetEvent('Khats:dropoff', function ()
                 TriggerServerEvent('QBCore:Server:RemoveItem', "package", 1)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "smallnote", 1)
                 TriggerServerEvent('QBCore:Server:AddItem', reward, math.random(2))
-                TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
+                TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()[reward], "add")
                 continue()
             elseif hasItem3 then
                 TriggerServerEvent('QBCore:Server:RemoveItem', "package", 1)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "mediumnote", 1)
                 TriggerServerEvent('QBCore:Server:AddItem', reward, math.random(3))
                 Citizen.Wait(1000)
-                TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
+                TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()[reward], "add")
                 continue()
             elseif hasItem4 then
                 TriggerServerEvent('QBCore:Server:RemoveItem', "package", 1)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "largenote", 1)
                 TriggerServerEvent('QBCore:Server:AddItem', reward, math.random(5))
                 Citizen.Wait(1000)
-                TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
+                TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()[reward], "add")
                 continue()
             elseif hasItem then
                 TriggerServerEvent('QBCore:Server:AddItem', reward, 1)
                 TriggerServerEvent('QBCore:Server:RemoveItem', "package", 1)
-                TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items[reward], "add")
+                TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()[reward], "add")
                 continue()
             elseif not hasItem then
                 onjob = false
@@ -263,7 +261,7 @@ RegisterNetEvent('PickupPackage', function ()
             amount = '10'
         end
         TriggerServerEvent('QBCore:Server:AddItem', "package", amount)
-        TriggerEvent("inventory:client:ItemBox", QBCore.Shared.Items["package"], "add")
+        TriggerEvent("inventory:client:ItemBox", exports.ox_inventory:Items()["package"], "add")
         exports['qb-target']:RemoveZone("oxypickup")
         if package ~= nil then
             RemoveBlip(package)
@@ -276,7 +274,7 @@ function Blip()
     SetBlipAsShortRange(package, true)
     SetBlipSprite(package, 501)
     SetBlipColour(package, 37)
-    SetBlipScale(package, 0.7)
+    SetBlipScale(package, 1.0)
     SetBlipDisplay(package, 6)
     BeginTextCommandSetBlipName('Pickup')
     AddTextComponentString('Pickup')
@@ -287,72 +285,10 @@ Citizen.CreateThread(function()
     if pedSpawned then return end
         spawnguard()
 end)
---New Container Features
 
-function makeboxes()
-    CreateThread(function()
-        for k, v in pairs(Config.Containers) do
-            local boxZone = BoxZone:Create(v.coords, 1, 1, {
-                name="Containers" .. k,
-                heading = v.coords.h,
-                minZ = 29,
-                maxZ = 32,
-                debugPoly = true
-            })
-            boxZone:onPlayerInOut(function(isPointInside)
-                if isPointInside then
-                    inZone = true
-                    print("inside")
-                else
-                    inZone = false
-                    exports['qb-core']:HideText()
-                    print("outside")
-                end
-            end)
-        end
-    end)
-    CreateThread(function()
-        Wait(1000)
-        local Hasitem = QBCore.Functions.HasItem("heavycutters")
-        while true do
-            local sleep = 1000
-            if inZone then
-                sleep = 2
-                for k, v in pairs(Config.Locations) do
-                    if not Config.Containers[k]["isBusy"] and not Config.Containers[k]["isOpened"] then
-                        exports['qb-core']:DrawText('Open the box', 'left')
-                        if IsControlJustPressed(0, 38) then
-                            exports['qb-core']:KeyPressed(38)
-                            --QBCore.Functions.TriggerCallback('qb-jewellery:server:getCops', function(cops)
-                                --if cops >= Config.RequiredCops then
-                                    if Hasitem then
-                                        local ItemAmount = math.random(1,100)
-                                        TriggerServerEvent('Khats:ContainerRewards', ItemAmount)
-                                    else
-                                        QBCore.Functions.Notify('How are you gonna open this?', 'error')
-                                    end
-                               -- else
-                                --    QBCore.Functions.Notify('Not Enough Police ('.. Config.RequiredCops ..') Required', 'error')
-                               -- end
-                           -- end)
-                        Wait(12000)
-                        end
-                    end
-                    if not firstAlarm then
-                        if Hasitem then
-                            TriggerServerEvent('police:server:policeAlert', 'Suspicious Activity')
-                            firstAlarm = true
-                        end
-                    end
-                end
-            else
-                sleep = 1000
-            end
-            Wait(sleep)
-        end
-    end)
+function loadAnimDict(dict)
+    while not HasAnimDictLoaded(dict) do
+        RequestAnimDict(dict)
+        Wait(5)
+    end
 end
---Container Command
-RegisterCommand('makeboxes', function()
-    makeboxes()
-end)
